@@ -65,7 +65,6 @@ Amajor = 1.0 #major radius - GX normalization parameter
 
 stel = Qsc(rc=raxis,zs=-zaxis, nfp=NFP, etabar=etabar, nphi=Nphi)
 iota = abs(stel.iota)
-print(iota)
 sigmaSol = stel.sigma
 Laxis = stel.axis_length
 sprime = stel.d_l_d_phi
