@@ -29,10 +29,8 @@ drhodpsi = 1.0
 rmaj     = 1.0
 kxfac    = 1.0
 
-B0 = 1
-etabar = 0.403
-VMECfileIn = "C:\\Users\\kimsp\\Downloads\\wout_li383_1.4m_ns201.nc"
-
+#read vmec
+VMECfileIn = "/home/pk123/Downloads/wout_li383_1.4m_ns201.nc"
 f = netcdf.netcdf_file(VMECfileIn,'r',mmap=False)
 raxis = f.variables['raxis_cc'][()]
 zaxis = f.variables['zaxis_cs'][()]
@@ -41,15 +39,6 @@ Aminor = abs(f.variables['Aminor_p'][()])
 phiVMEC = f.variables['phi'][()]
 phiEDGE = abs(phiVMEC[-1])/(2*pi)
 
-#phiEDGE = 0.01 #0.1 # toroidal flux at the boundary divided by 2*pi
-# etabar  = 0.632 #0.408 # # parametrization for all first order quasisymmetric fields
-# B0      = 1.00#1.55 # # magnetic field strength on axis
-# raxis   = [1.0,0.173,0.0168,0.00101]#[1.4757E+00,  9.7154E-02,  6.1231E-03,  2.3576E-04, -3.0796E-05, -1.7145E-05] # # # axis shape - radial coefficients
-# zaxis   = [0.0,0.159,0.0165,0.000985]#[0.0000E+00, -6.0712E-02, -4.3777E-03, -2.3272E-04, -5.4560E-05,  2.2188E-05]# # # axis shape - vertical coefficients
-# NFP     = 2 # number of field periods
-# I2 = 0.0
-#rVMEC   = 0.01
-
 ## Resolution
 Nphi     = 250 # resolution along the axis
 nlambda  = 10 # GS2 quantity: resolution in the pitch-angle variable
@@ -57,12 +46,15 @@ tgridmax = 3*pi # maximum (and -1*minumum) of the field line coordinate
 ntgrid   = 48 # resolution along the field line  
 zscale = 1.0
 
+#More input parameters
+B0 = 1
+etabar = 0.403  #HSX etabar = 1.33 ESTELL etabar = 0.563
 normalizedtorFlux = 0.001 # normalization for the toroidal flux
 alpha = 0.0 # field line label
 shat  = 10**(-6) # used in the definition of GX and GS2 quantities
 #Aminor = np.sqrt((2*phiEDGE)/B0) # minor radius - GS2 normalization parameter
-Amajor = 1.0 #major radius - GX normalization parameter
 
+## Obtain near-axis configuration
 stel = Qsc(rc=raxis,zs=-zaxis, nfp=NFP, etabar=etabar, nphi=Nphi)
 iota = abs(stel.iota)
 sigmaSol = stel.sigma
@@ -73,15 +65,6 @@ phi = stel.phi
 nNormal = stel.iotaN - stel.iota
 varphi = stel.varphi
 
-
-
-# ## Geometry and normalizations
-# alpha = 0.0 # field line label
-# shat  = 10**(-6) # used in the definition of GX and GS2 quantities
-# Aminor = 1.0 # minor radius - GS2 normalization parameter
-# Amajor = 1.0 #major radius - GX normalization parameter
-# normalizedtorFlux = 0.001/pi # normalization for the toroidal flux
-
 ## Output files
 gs2gridNA = "gs2input.out"
 gxgridNA  = "gxinput.out"
@@ -90,7 +73,7 @@ gxgridNA  = "gxinput.out"
 ############## RUN ##############
 #################################
 
-## Obtain near-axis configuration
+
 
 
 ## Find near-axis sigma and sprime functions for this specific theta grid
@@ -110,21 +93,7 @@ def sigma(phi):      return sigmaTemp(phiToNFP(phi))
 def sprimeFunc(phi): return sprimeTemp(phiToNFP(phi))
 def curvFunc(phi):   return curvTemp(phiToNFP(phi))
 
-## GS2 geometric quantities
-# rVMEC 			        = -np.sqrt((2*phiEDGE*normalizedtorFlux)/B0)
-# def Phi(theta):         return (theta - alpha)/(iota - nNormal)
-# def bmagNew(theta):     return ((Aminor**2)*B0*(1+rVMEC*etabar*np.cos(theta)))/(2*phiEDGE)
-# # def gradparNew(theta):  return  ((2*Aminor*pi*(1+rVMEC*etabar*np.cos(theta)))/Laxis)/(sprimeFunc((alpha-theta)/(iota-nNormal))*2*pi/Laxis)
-# def gradparNew(theta):  return  ((iota*2*Aminor*pi*(1+rVMEC*etabar*np.cos(theta)))/Laxis)
-# def gds2New(theta):     return (((Aminor**2)*B0)/(2*phiEDGE))*((etabar**2*np.cos(theta)**2)/curvFunc(Phi(theta))**2 + (curvFunc(Phi(theta))**2*(np.sin(theta)+np.cos(theta)*sigma(Phi(theta)))**2)/etabar**2)
-# def gds21New(theta):    return -(1/(2*phiEDGE))*Aminor**2*shat*((B0*etabar**2*np.cos(theta)*np.sin(theta))/curvFunc(Phi(theta))**2+(1/etabar**2)*B0*(curvFunc(Phi(theta))**2)*(np.sin(theta)+np.cos(theta)*sigma(Phi(theta)))*(-np.cos(theta)+np.sin(theta)*sigma(Phi(theta))))
-# def gds22New(theta):    return (Aminor**2*B0*(shat**2)*((etabar**4)*np.sin(theta)**2+(curvFunc(Phi(theta))**4)*(np.cos(theta)-np.sin(theta)*sigma(Phi(theta)))**2))/(2*phiEDGE*(etabar**2)*curvFunc(Phi(theta))**2)
-# def gbdriftNew(theta):  return (2*np.sqrt(2)*etabar*np.cos(theta))/np.sqrt(B0/phiEDGE)*(1-0*2*rVMEC*etabar*np.cos(theta))
-# def cvdriftNew(theta):  return gbdriftNew(theta)
-# def gbdrift0New(theta): return -2*np.sqrt(2)*np.sqrt(phiEDGE/B0)*shat*etabar*np.sin(theta)*(1-0*2*rVMEC*etabar*np.cos(theta))
-# def cvdrift0New(theta): return gbdrift0New(theta)
-
-##GX geometric quantities
+##Geometric quantities
 rVMEC 			        = -np.sqrt((2*phiEDGE*normalizedtorFlux)/B0)
 def Phi(theta):         return (theta - alpha)/(iota - nNormal)
 def bmagNew(theta):     return ((Aminor**2)*B0*(1+rVMEC*etabar*np.cos(theta)))/(2*phiEDGE)
@@ -141,9 +110,6 @@ def cvdrift0New(theta): return gbdrift0New(theta)
 
 lambdamin=((2*phiEDGE)/((Aminor**2)*B0))/(1+abs(rVMEC*etabar))
 lambdamax=((2*phiEDGE)/((Aminor**2)*B0))/(1-abs(rVMEC*etabar))
-
-# lambdamin = 1/(1+abs(rVMEC*etabar))
-# lambdamax = 1/(1-abs(rVMEC*etabar))
 lambdavec=np.linspace(lambdamin,lambdamax,nlambda)
 
 ## GX geometric quantities

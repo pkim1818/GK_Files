@@ -1,0 +1,90 @@
+ debug = false
+
+[Dimensions]
+
+ntheta = 96
+nperiod = 1
+ny = 22
+nx = 1
+nspecies = 1
+nhermite = 16
+nlaguerre = 8
+
+[Domain]
+
+y0 = 8.0
+x0 = 10.0
+
+boundary = "linked"
+
+[Time]
+
+dt = 1.0e-3
+nstep  = 500000
+nwrite = 2000
+
+[Geometry]
+
+igeo = 1
+geofile = "gxinput.out"
+shat = 1.0e-6
+slab = false
+const_curv = false
+
+[Controls]
+
+scheme = "k10"
+
+closure_model = "none"
+smith_par_q = 2
+nonlinear_mode = false
+cfl = 0.5 
+kpar_init = 0.0
+init_field = "density"
+init_amp = 1.0
+
+hypercollisions = true
+nu_hyper_m = 0.5
+p_hyper_m = 6
+nu_hyper_l = 0.5
+p_hyper_l = 6
+
+[Diagnostics]
+
+fluxes = false
+omega = true
+free_energy = true
+fixed_amplitude = true
+
+[Restart]
+
+restart = false
+
+save_for_restart = true
+restart_to_file = "kim_cyc_restart.nc"
+
+[Boltzmann]
+
+add_Boltzmann_species = true
+Boltzmann_type = "electrons"
+tau_fac = 1.0
+
+[Wspectra]
+hermite = true
+laguerre = true
+z = true
+
+[Pspectra]
+z = true
+
+[species]
+ z      = [ 1.0,   -1.0  ]
+ mass   = [ 1.0,   2.7e-4]
+ dens   = [ 1.0,    1.0  ]
+ temp   = [ 1.0,    1.0  ]
+ tprim  = [ 6.0,    0.0  ]
+ fprim  = [ 2.2,    2.2  ]
+ uprim  = [ 0.0,    0.0  ]
+ vnewk  = [ 0.0,    0.0  ]
+ type   = [ "ion", "electron" ] 
+
