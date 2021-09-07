@@ -76,7 +76,7 @@ class Near_Axis_GK:
         self.rVMEC = -np.sqrt((2*self.phiEDGE*self.normalizedtorFlux)/self.B0)
         self.drho = 1/(self.B0*self.rVMEC)
         
-        self.etabar = self.get_NearAxis(boozFile=boozmnFile,vmecFile = VMECfileIn)
+        self.etabar = abs(self.get_NearAxis(boozFile=boozmnFile,vmecFile = VMECfileIn))
         
         # sqrt_s_over_r = np.sqrt(np.pi*B0/self.phiEDGE)
         # print(sqrt_s_over_r/)
@@ -243,9 +243,9 @@ class Near_Axis_GK:
         f.close()
     
         # Calculate nNormal
-        stel = Qsc(rc=rc,zs=zs)
-        nNormal = stel.iota - stel.iotaN
-    
+        stel = Qsc(rc=rc,zs=-zs,nfp=nfp)
+        nNormal = -1*(stel.iota - stel.iotaN)
+        
         # Prepare coordinates for fit
         s_full = np.linspace(0,1,ns)
         ds = s_full[1] - s_full[0]
@@ -286,13 +286,12 @@ class Near_Axis_GK:
 
     
         # Convert expansion in sqrt(s) to an expansion in r
-        BBar = max(B0)
+        BBar = np.mean(B0)
         sqrt_s_over_r = np.sqrt(np.pi * BBar / Psi_a)
         B1s *= sqrt_s_over_r
         B1c *= sqrt_s_over_r
-        eta_bar = np.mean(max(B1c)) / BBar
-        stel = Qsc(rc=rc,zs=zs,etabar=eta_bar,nphi=N_phi,nfp=nfp,B0=BBar)
-    
+        eta_bar = np.mean(B1c) / BBar
+        print(eta_bar)
         # Return results
         return eta_bar
     
