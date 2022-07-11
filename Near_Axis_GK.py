@@ -14,13 +14,16 @@ from qsc.qsc import Qsc
 from scipy.interpolate import interp1d
 from scipy.optimize import fsolve
 from scipy.io import netcdf
+import fortranformat as ff
 
 class Near_Axis_GK:
-    def __init__(self,raxis=[0],zaxis=[0],NFP=1,etabar=1,Nphi=250,phiEDGE=1.0,B0=1.0,normalizedtorFlux=0.001,alpha=0.0,shat=10^(-6),stel=""):
+    def __init__(self,raxis=[0],zaxis=[0],NFP=1,etabar=1,Nphi=250,phiEDGE=1.0,B0=1.0,normalizedtorFlux=0.001,alpha=0.0,shat=10^(-6),stel="",I2=0,tgridmax = math.pi,ntgrid=64):
         self.Nphi = Nphi
         self.normalizedtorFlux = normalizedtorFlux
         self.alpha = alpha
         self.shat = 10**(-6)
+        #self.shat = 0.8
+        self.I2 = I2
         
         self.pi = math.pi
         self.mu0 = 4*self.pi*10**(-7)
@@ -32,14 +35,14 @@ class Near_Axis_GK:
         self.kxfac    = 1.0
         
         ## Resolution
-        self.nlambda  = 10 # GS2 quantity: resolution in the pitch-angle variable
-        self.tgridmax = 3*self.pi # maximum (and -1*minumum) of the field line coordinate
-        self.ntgrid   = 48 # resolution along the field line  
+        self.nlambda  = 16 # GS2 quantity: resolution in the pitch-angle variable
+        self.tgridmax = tgridmax # maximum (and -1*minumum) of the field line coordinate
+        self.ntgrid   = ntgrid # resolution along the field line  
         self.zscale = 1.0
         
         if stel=="":
             self.raxis = raxis
-            self.zaxis = zaxis
+            self.zaxis = [-i for i in zaxis]
             self.NFP = NFP
             self.etabar = etabar
             self.phiEDGE = phiEDGE
@@ -61,12 +64,12 @@ class Near_Axis_GK:
         # dname = os.path.dirname(abspath)
         # os.chdir(dname)
         
-        VMECfileIn = "/home/pk123/Documents/GK_Files/test_cases/VMEC/" + stel + "/wout_" + stel + ".nc"
-        boozmnFile = "/home/pk123/Documents/GK_Files/test_cases/VMEC/" + stel + "/boozmn_" + stel + ".nc"
+        VMECfileIn = "C:\\Users\\kimsp\\Downloads\\" + "wout_" + stel + ".nc"
+        boozmnFile = "C:\\Users\\kimsp\\Downloads\\" + "boozmn_" + stel + ".nc"
         f = netcdf.netcdf_file(VMECfileIn,'r',mmap=False)
         bf = netcdf.netcdf_file(boozmnFile,'r',mmap=False)
         self.raxis = f.variables['raxis_cc'][()]
-        self.zaxis = f.variables['zaxis_cs'][()]
+        self.zaxis = -f.variables['zaxis_cs'][()]
         self.NFP   = f.variables['nfp'][()]
         self.Aminor = abs(f.variables['Aminor_p'][()])
         self.phiVMEC = f.variables['phi'][()]
@@ -77,13 +80,14 @@ class Near_Axis_GK:
         self.drho = 1/(self.B0*self.rVMEC)
         
         self.etabar = abs(self.get_NearAxis(boozFile=boozmnFile,vmecFile = VMECfileIn))
+        self.Bref = 2*self.phiEDGE/self.Aminor
         
         # sqrt_s_over_r = np.sqrt(np.pi*B0/self.phiEDGE)
         # print(sqrt_s_over_r/)
         
-        self.make_stel()
+        self.stel = self.make_stel()
     def make_stel(self):
-        stel = Qsc(rc=self.raxis,zs=-self.zaxis, nfp=self.NFP, etabar=self.etabar, nphi=self.Nphi)
+        stel = Qsc(rc=self.raxis,zs=self.zaxis, nfp=self.NFP, etabar=self.etabar, nphi=self.Nphi,I2=self.I2)
         self.iota = abs(stel.iota)
         sigmaSol = stel.sigma
         self.Laxis = stel.axis_length
@@ -95,6 +99,8 @@ class Near_Axis_GK:
         self.sigmaTemp  = interp1d(phi,sigmaSol, kind='cubic')
         self.sprimeTemp = interp1d(phi,sprime, kind='cubic')
         self.curvTemp   = interp1d(phi,curvature, kind='cubic')
+        return stel
+        #stel.flux_tube        
     
     def phiToNFP(self,phi):
         period=2*self.pi*(1-1/self.Nphi)/self.NFP
@@ -111,17 +117,49 @@ class Near_Axis_GK:
 
     def Phi(self,theta):         return (theta - self.alpha)/(self.iota - self.nNormal)
     def bmagNew(self,theta):     return ((self.Aminor**2)*self.B0*(1+self.rVMEC*self.etabar*np.cos(theta)))/(2*self.phiEDGE)
-    # def gradparNew(theta):  return  ((2*Aminor*pi*(1+rVMEC*etabar*np.cos(theta)))/Laxis)/(sprimeFunc((alpha-theta)/(iota-nNormal))*2*pi/Laxis)
+    #def gradparNew(self,theta):  return  ((2*self.Aminor*self.pi*(1+self.rVMEC*self.etabar*np.cos(theta)))/self.Laxis)/(self.sprimeFunc((self.alpha-theta)/(self.iota-self.nNormal))*2*self.pi/self.Laxis)
     def gradparNew(self,theta):  return  (((self.iota-self.nNormal)*2*self.Aminor*self.pi*(1+self.rVMEC*self.etabar*np.cos(theta)))/self.Laxis)
     def gds2New(self,theta):     return (((self.Aminor**2)*self.B0)/(2*self.phiEDGE))*((self.etabar**2*np.cos(theta)**2)/self.curvFunc(self.Phi(theta))**2 + (self.curvFunc(self.Phi(theta))**2*(np.sin(theta)+np.cos(theta)*self.sigma(self.Phi(theta)))**2)/self.etabar**2)
     def gds21New(self,theta):    return -(1/(2*self.phiEDGE))*self.Aminor**2*self.shat*((self.B0*self.etabar**2*np.cos(theta)*np.sin(theta))/self.curvFunc(self.Phi(theta))**2+(1/self.etabar**2)*self.B0*(self.curvFunc(self.Phi(theta))**2)*(np.sin(theta)+np.cos(theta)*self.sigma(self.Phi(theta)))*(-np.cos(theta)+np.sin(theta)*self.sigma(self.Phi(theta))))
     def gds22New(self,theta):    return (self.Aminor**2*self.B0*(self.shat**2)*((self.etabar**4)*np.sin(theta)**2+(self.curvFunc(self.Phi(theta))**4)*(np.cos(theta)-np.sin(theta)*self.sigma(self.Phi(theta)))**2))/(2*self.phiEDGE*(self.etabar**2)*self.curvFunc(self.Phi(theta))**2)
     def gbdriftNew(self,theta):  return (2*np.sqrt(2)*self.etabar*np.cos(theta))/np.sqrt(self.B0/self.phiEDGE)*(1-0*2*self.rVMEC*self.etabar*np.cos(theta))
+    #def gbdriftNew(self,theta):  return 1/self.rVMEC*self.B0**2*self.etabar*np.cos(theta)*2*self.Bref*self.Aminor**2*np.sqrt(self.normalizedtorFlux)
     def cvdriftNew(self,theta):  return self.gbdriftNew(theta)
     def gbdrift0New(self,theta): return -2*np.sqrt(2)*np.sqrt(self.phiEDGE/self.B0)*self.shat*self.etabar*np.sin(theta)*(1-0*2*self.rVMEC*self.etabar*np.cos(theta))
     def cvdrift0New(self,theta): return self.gbdrift0New(theta)
-    def gradpsisq(self,theta):   return self.rVMEC^2*self.B0^2/(self.etabar^2*self.curvFunc(self.Phi(theta))^2)*(self.etabar^4*np.sin(theta)^2 + self.curvFunc(self.Phi(theta))^4*(np.cos(theta)-self.sigma(self.Phi(theta))*np.sin(theta))^2)
+    def gradpsisq(self,theta):   return self.rVMEC**2*self.B0**2/(self.etabar**2*self.curvFunc(self.Phi(theta))**2)*(self.etabar**4*np.sin(theta)**2 + self.curvFunc(self.Phi(theta))**4*(np.cos(theta)-self.sigma(self.Phi(theta))*np.sin(theta))**2)
     def grho(self,theta):        return self.drho*np.sqrt(self.gradpsisq(theta))
+    
+    
+    def make_stella(self):
+        stellagridNA = "input.geometry"
+        nz=self.ntgrid*2
+        paramTheta = np.multiply(np.linspace(-self.tgridmax,self.tgridmax,nz+1),(self.iota-self.nNormal))
+        open(stellagridNA, 'w').close()
+        f = open(stellagridNA, "w")
+        
+        f.write("ntgrid nperiod ntheta drhodpsi rmaj shat kxfac q\n")
+        f.write(str(self.ntgrid)+" "+str(self.nperiod)+" "+str(nz)+" "+str(self.drhodpsi)+" "+str(self.rmaj)+" "+str(self.shat)+" "+str(self.kxfac)+" "+str(1/self.iota) + "\n")
+        f.write("dummy dummy dummy bmag gradpar gds2 gds21 gds22 gds23 gds24 gbdrift cvdrift gbdrift0\n")
+        
+        # for zz in paramTheta:
+        #     phi = zz/(self.iota-self.nNormal)
+        #     f.write(" 0.0000000000 0.0000000000 0.0000000000 "+ str(self.bmagNew(phi))[:12] + " " + str(self.gradparNew(phi))[:12] + " " + str(self.gds2New(phi))[:12] + " " + str(self.gds21New(phi))[:12]
+        #             + " " + str(self.gds22New(phi))[:12] + " " + "0.0" + " " + "0.0" + " " + str(self.gbdriftNew(phi))[:12] + " " + str(self.cvdriftNew(phi))[:12]
+        #             + " " + str(self.gbdriftNew(phi))[:12] + "\n")
+
+        
+
+        for zz in paramTheta:
+            phi = zz/(self.iota-self.nNormal)
+            num = [0, 0, 0, self.bmagNew(phi), self.gradparNew(phi),self.gds2New(phi),self.gds21New(phi),self.gds22New(phi),0.0,0.0,self.gbdriftNew(phi),self.cvdriftNew(phi),self.gbdrift0New(phi)]
+            line = ff. FortranRecordWriter('(13E12.4)')
+            l = line.write(num)
+            l = l + "\n"
+            f.write(l)
+        
+        f.close()
+
     
     def make_gs2(self):
         
@@ -144,6 +182,7 @@ class Near_Axis_GK:
         f.write("\ngbdrift gradpar grho tgrid")
         for zz in paramTheta:
         	f.write("\n"+str(self.gbdriftNew(zz/(self.iota-self.nNormal)))+" "+str(self.gradparNew(zz/(self.iota-self.nNormal)))+" 1.0 "+str(zz/(self.iota-self.nNormal)))
+            #f.write("\n"+str(self.gbdriftNew(zz/(self.iota-self.nNormal)))+" "+str(self.gradparNew(zz/(self.iota-self.nNormal))) + " " + str(self.grho(zz/(self.iota-self.nNormal))) + " " + str(zz/(self.iota-self.nNormal)))
         f.write("\ncvdrift gds2 bmag tgrid")
         for zz in paramTheta:
         	f.write("\n"+str(self.cvdriftNew(zz/(self.iota-self.nNormal)))+" "+str(self.gds2New(zz/(self.iota-self.nNormal)))+" "+str(self.bmagNew(zz/(self.iota-self.nNormal)))+" "+str(zz/(self.iota-self.nNormal)))
@@ -155,13 +194,13 @@ class Near_Axis_GK:
         	f.write("\n"+str(self.cvdrift0New(zz/(self.iota-self.nNormal)))+" "+str(self.gbdrift0New(zz/(self.iota-self.nNormal)))+" "+str(zz/(self.iota-self.nNormal)))
         f.write("\nRplot Rprime tgrid")
         for zz in paramTheta:
-        	f.write("\n0.0 0.0 "+str(zz/(self.iota-self.nNormal)))
+        	f.write("\n10.0 10.0 "+str(zz/(self.iota-self.nNormal)))
         f.write("\nZplot Rprime tgrid")
         for zz in paramTheta:
-        	f.write("\n0.0 0.0 "+str(zz/(self.iota-self.nNormal)))
+        	f.write("\n10.0 10.0 "+str(zz/(self.iota-self.nNormal)))
         f.write("\naplot Rprime tgrid")
         for zz in paramTheta:
-        	f.write("\n0.0 0.0 "+str(zz/(self.iota-self.nNormal)))
+        	f.write("\n10.0 10.0 "+str(zz/(self.iota-self.nNormal)))
         f.write("\n")
         f.close()
         
@@ -178,14 +217,9 @@ class Near_Axis_GK:
         gxgridNA  = "gxinput.out"
         
         ## GX geometric quantities
-        # phiMax=self.tgridmax
-        # phiMin=-self.tgridmax
-        # pMax=(self.iota-self.nNormal)*phiMax
-        # pMin=(self.iota-self.nNormal)*phiMin
         zMax= self.zscale * self.pi
         zMin=-self.zscale * self.pi
-        # denMin=phiMin-self.rVMEC*self.etabar*np.sin(pMin)
-        # denMax=phiMax-self.rVMEC*self.etabar*np.sin(pMax)
+
         iotaN=self.iota-self.nNormal
         nz=self.ntgrid*2
 
@@ -204,10 +238,10 @@ class Near_Axis_GK:
         open(gxgridNA, 'w').close()
         f = open(gxgridNA, "w")
         f.write("ntgrid nperiod ntheta drhodpsi rmaj shat kxfac q scale")
-        f.write("\n"+str(self.ntgrid)+" "+str(self.nperiod)+" "+str(nz)+" "+str(self.drhodpsi)+" "+str(self.rmaj)+" "+str(self.shat)+" "+str(self.kxfac)+" "+str(1/self.iota) + " " + str(thetamax/zMax))
+        f.write("\n"+str(self.ntgrid)+" "+str(self.nperiod)+" "+str(nz)+" "+str(self.drhodpsi)+" "+str(1.0)+" "+str(self.shat)+" "+str(self.kxfac)+" "+str(1/self.iota) + " " + str(thetamax/zMax))
         f.write("\ngbdrift gradpar grho tgrid")
         for count,zz in enumerate(paramThetaGX):
-        	f.write("\n"+str(self.gbdriftNew(zz))+" "+str(self.gradparGX)+" 1.0 "+str(zGXgrid[count]))
+        	f.write("\n"+str(self.gbdriftNew(zz))+" "+str(self.gradparGX)+ " " + str(-self.grho(zz)) + " " + str(zGXgrid[count]))
         f.write("\ncvdrift gds2 bmag tgrid")
         for count,zz in enumerate(paramThetaGX):
         	f.write("\n"+str(self.cvdriftNew(zz))+" "+str(self.gds2New(zz))+" "+str(self.bmagNew(zz))+" "+str(zGXgrid[count]))
